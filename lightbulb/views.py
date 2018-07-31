@@ -1,23 +1,29 @@
+import json
+
 import requests
 from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 
 LIGHT_OID = '5213bf96-c25a-40bf-891c-49cb84db2844'
 OPENHAB_HOST = 'localhost'
-OPENHAB_PORT = 3000
+OPENHAB_PORT = 8080
 
-PREDEFINED_COLORS = {
-    'green': '',
-    'red': '',
+COLORS = {
+    'green': '63,92,46',
+    'red': '0,100,46',
+    'yellow': '47,85,47',
+    'blue': '244,100,47',
 }
 
-
+@csrf_exempt
 def lightbulb_color(request, oid, pid):
     response = {
+        'error_message': '',
         'property': 'color',
         'value': -1
     }
 
-    # Temporary logic as this is a quick-fix adapter that will most likely be replaced
+    # Temporary logic as this is a quick-fix adapter that will most likely be replaced by Philips Hue
     if oid != LIGHT_OID:
         return JsonResponse(data=response, status=404)
 
@@ -25,13 +31,20 @@ def lightbulb_color(request, oid, pid):
         return JsonResponse(data=response, status=404)
 
     if request.method == 'GET':
-        res = requests.get('https://{HOST}/')
-        if res.status_code == 200:
-            # response['value'] = res.json()
-            pass
+        # unfinished, not sure if this needs to be implemented
         return JsonResponse(data=response, status=200)
+
     elif request.method == 'PUT':
+        body = json.loads(request.body)
+        color = body['color']
+
+        if color not in COLORS:
+            response['error_message'] = "no color named {0}".format(color)
+            return JsonResponse(data=response, status=400)
+        requests.post(url='http://{HOST}:{PORT}/rest/items/LightColor'.format(HOST=OPENHAB_HOST, PORT=OPENHAB_PORT), data=COLORS[color])
+
         return JsonResponse(data=response, status=200)
+
     else:
         response['error_message'] = 'unsupported method'
         return JsonResponse(data=response, status=400)
